@@ -37,11 +37,15 @@ func readN(input io.Reader, result map[int]int, i, n int) error {
 	return readN(input, result, i+1, n-1)
 }
 
-func main() {
-	stock := readData(os.Stdin)
+func numberOfPairs(stock socksStock) int {
 	var pairs int
 	for _, count := range stock.socks {
 		pairs += count / 2
 	}
-	fmt.Println(pairs)
+	return pairs
+}
+
+func main() {
+	stock := readData(os.Stdin)
+	fmt.Println(numberOfPairs(stock))
 }
