@@ -12,17 +12,17 @@ type socksStock struct {
 	socks map[int]int
 }
 
-func readData(input io.Reader) socksStock {
+func readData(input io.Reader) (*socksStock, error) {
 	var stock socksStock
 	_, err := fmt.Fscanf(input, "%d\n", &stock.total)
 	if err != nil {
-		log.Fatal("Error reading the number of socks", err)
+		return nil, err
 	}
 	stock.socks = make(map[int]int)
 	if err = readN(input, stock.socks, 0, stock.total); err != nil {
-		log.Fatal("Error reading socks: ", err)
+		return nil, err
 	}
-	return stock
+	return &stock, nil
 }
 
 func readN(input io.Reader, result map[int]int, i, n int) error {
@@ -37,7 +37,7 @@ func readN(input io.Reader, result map[int]int, i, n int) error {
 	return readN(input, result, i+1, n-1)
 }
 
-func numberOfPairs(stock socksStock) int {
+func numberOfPairs(stock *socksStock) int {
 	var pairs int
 	for _, count := range stock.socks {
 		pairs += count / 2
@@ -46,6 +46,9 @@ func numberOfPairs(stock socksStock) int {
 }
 
 func main() {
-	stock := readData(os.Stdin)
+	stock, err := readData(os.Stdin)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(numberOfPairs(stock))
 }
