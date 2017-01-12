@@ -7,12 +7,12 @@ import (
 	"log"
 	"math"
 	"os"
-	"strconv"
 )
 
 // Helper functions
 type inputData struct {
-	n, number int
+	n      int
+	number string
 }
 
 func readData(in io.Reader) (*inputData, error) {
@@ -21,14 +21,14 @@ func readData(in io.Reader) (*inputData, error) {
 	if m != 1 {
 		return nil, err
 	}
-	m, err = fmt.Fscanf(in, "%d", &data.number)
+	m, err = fmt.Fscanf(in, "%s", &data.number)
 	if m != 1 {
 		return nil, err
 	}
 	return &data, nil
 }
 
-func permutations(number string, mask int, result map[int64]bool) (map[int64]bool, error) {
+func permutations(number string, mask int, result []string) ([]string, error) {
 	if float64(mask) == math.Pow(2, float64(len(number))) { // all possibilities checked
 		return result, nil
 	}
@@ -43,37 +43,42 @@ func permutations(number string, mask int, result map[int64]bool) (map[int64]boo
 			buf.WriteByte(number[index])
 		}
 	}
-	permutationAsNumber, err := strconv.ParseInt(buf.String(), 10, 64)
-	if err != nil {
-		return result, err
-	}
-	result[permutationAsNumber] = true
-	return permutations(number, mask+1, result)
+	return permutations(number, mask+1, append(result, buf.String()))
 }
 
-func howManyDivisable(numbers map[int64]bool, divisor int64) int {
+func howManyDivisable(numbers []string, divisor int64) (int, error) {
 	var result int
-	for num := range numbers {
+	for _, numStr := range numbers {
+		var num int64
+		m, err := fmt.Sscanf(numStr, "%d", &num)
+		if m != 1 {
+			return -1, err
+		}
 		if math.Remainder(float64(num), float64(divisor)) == 0 {
 			result++
 		}
 	}
-	return result
+	return result, nil
 }
 
 // Main function
 func main() {
 	data, err := readData(os.Stdin)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error reading input data: %v", err)
 	}
+	digitsNo := len(data.number)
+	allSubNumbers := make([]string, 0, int(math.Pow(2.0, float64(digitsNo))))
 
-	allSubNumbers := make(map[int64]bool)
-
-	allSubNumbers, err = permutations(fmt.Sprintf("%d", data.number), 1, allSubNumbers)
+	allSubNumbers, err = permutations(data.number, 1, allSubNumbers)
 	if err != nil {
 		log.Fatal(err)
 	}
-	divisorsNo := int64(math.Remainder(float64(howManyDivisable(allSubNumbers, 8)), math.Pow(10.0, 9.0)+7))
-	fmt.Println(divisorsNo)
+
+	divisorsNo, err := howManyDivisable(allSubNumbers, 8)
+	if err != nil {
+		log.Fatal(err)
+	}
+	divisorsNoModulo := int64(math.Remainder(float64(divisorsNo), math.Pow(10.0, 9.0)+7))
+	fmt.Println(divisorsNoModulo)
 }

@@ -5,6 +5,10 @@ challenge.
 
 ## Description
 
-The solution is not good. It's not passing all the tests. In fact, it only passed
-`Test Case #4` and `Test Case #5`. It produced a runtime error for `Test Case #3`
-and `Test Case #2`.
+Note: According to the [discussion thread](https://www.hackerrank.com/contests/w28/challenges/lucky-number-eight/forum)
+in hackerrank, the solution is a little bit counter-intuitive and a few edge
+cases had to be taken into account in this solution:
+
+- 0, 00, 000, 008, 0008, 00000016 - are all valid solution and each should
+  be counted
+- repetitions should be counted as well
