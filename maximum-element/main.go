@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"sort"
+
+	bst "github.com/bodgix/gobst"
 )
 
 type commandType int
@@ -20,54 +22,42 @@ const (
 
 type stack []int
 
-func (s *stack) pop() {
-	if len(*s) > 0 {
-		*s = (*s)[:len(*s)-1]
-	}
-}
-
-type max struct {
-	max         int
-	initialized bool
+func (s *stack) pop() int {
+	val := (*s)[len(*s)-1]
+	*s = (*s)[:len(*s)-1]
+	return val
 }
 
 type command interface {
-	run(io.Reader, stack, max) (stack, max, error)
+	run(io.Reader, stack, *bst.Bst) (stack, *bst.Bst, error)
 }
 
 type commandPush struct{}
 
-func (commandPush) run(r io.Reader, s stack, m max) (stack, max, error) {
+func (commandPush) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
 	n, err := readInt(r)
 	if err != nil {
-		return s, m, err
+		return s, t, err
 	}
-	if !m.initialized || m.max < n {
-		m.max = n
-		m.initialized = true
-	}
+	t.Insert(n)
 
 	s = append(s, n)
-	return s, m, nil
+	return s, t, nil
 }
 
 type commandDelete struct{}
 
-func (commandDelete) run(r io.Reader, s stack, m max) (stack, max, error) {
-	s.pop()
-	if len(s) == 0 {
-		m.initialized = false
-	} else {
-		m.max = findMax(s)
-	}
-	return s, m, nil
+func (commandDelete) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
+	value := s.pop()
+	t.Delete(value)
+	return s, t, nil
 }
 
 type commandPrint struct{}
 
-func (commandPrint) run(r io.Reader, s stack, m max) (stack, max, error) {
-	fmt.Println(m.max)
-	return s, m, nil
+func (commandPrint) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
+	fmt.Println(t.Max())
+	return s, t, nil
 }
 
 func newCommand(c commandType) (command, error) {
@@ -106,7 +96,7 @@ func main() {
 	var err error
 	var c int
 	s := make(stack, 0)
-	var m max
+	t := bst.NewBst()
 
 	if _, err = readInt(os.Stdin); err != nil {
 		log.Fatal("Error reading input data ", err)
@@ -117,7 +107,7 @@ func main() {
 		if cmd, err = newCommand(commandType(c)); err != nil {
 			log.Fatal(err)
 		}
-		if s, m, err = cmd.run(os.Stdin, s, m); err != nil {
+		if s, t, err = cmd.run(os.Stdin, s, t); err != nil {
 			log.Fatal(err)
 		}
 	}
