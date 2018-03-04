@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 
 	bst "github.com/bodgix/gobst"
 )
@@ -29,12 +28,12 @@ func (s *stack) pop() int {
 }
 
 type command interface {
-	run(io.Reader, stack, *bst.Bst) (stack, *bst.Bst, error)
+	run(io.Reader, stack, bst.Bst) (stack, bst.Bst, error)
 }
 
 type commandPush struct{}
 
-func (commandPush) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
+func (commandPush) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
 	n, err := readInt(r)
 	if err != nil {
 		return s, t, err
@@ -47,7 +46,7 @@ func (commandPush) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error
 
 type commandDelete struct{}
 
-func (commandDelete) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
+func (commandDelete) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
 	value := s.pop()
 	t.Delete(value)
 	return s, t, nil
@@ -55,7 +54,7 @@ func (commandDelete) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, err
 
 type commandPrint struct{}
 
-func (commandPrint) run(r io.Reader, s stack, t *bst.Bst) (stack, *bst.Bst, error) {
+func (commandPrint) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
 	fmt.Println(t.Max())
 	return s, t, nil
 }
@@ -83,13 +82,6 @@ func readInt(r io.Reader) (int, error) {
 		return d, errors.New("Expected 1 result")
 	}
 	return d, nil
-}
-
-func findMax(s stack) int {
-	tmp := make(stack, len(s))
-	copy(tmp, s)
-	sort.Ints(tmp)
-	return tmp[len(tmp)-1]
 }
 
 func main() {
