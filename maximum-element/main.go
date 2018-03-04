@@ -6,8 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-
-	bst "github.com/bodgix/gobst"
 )
 
 type commandType int
@@ -19,44 +17,67 @@ const (
 	print
 )
 
-type stack []int
+type stackElement struct {
+	value       int
+	currentMax  int
+	initialized bool
+}
 
-func (s *stack) pop() int {
-	val := (*s)[len(*s)-1]
-	*s = (*s)[:len(*s)-1]
+type stack []stackElement
+
+func (s *stack) pop() stackElement {
+	var val stackElement
+	if len(*s) > 0 {
+		val = (*s)[len(*s)-1]
+		*s = (*s)[:len(*s)-1]
+	} else {
+		val = stackElement{}
+	}
 	return val
 }
 
+func (s stack) peek() stackElement {
+	if len(s) > 0 {
+		return s[len(s)-1]
+	}
+	return stackElement{}
+}
+
 type command interface {
-	run(io.Reader, stack, bst.Bst) (stack, bst.Bst, error)
+	run(io.Reader, stack) (stack, error)
 }
 
 type commandPush struct{}
 
-func (commandPush) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
+func (commandPush) run(r io.Reader, s stack) (stack, error) {
 	n, err := readInt(r)
 	if err != nil {
-		return s, t, err
+		return s, err
 	}
-	t.Insert(n)
-
-	s = append(s, n)
-	return s, t, nil
+	var newMax int
+	last := s.peek()
+	if !last.initialized || last.currentMax < n {
+		newMax = n
+	} else {
+		newMax = last.currentMax
+	}
+	s = append(s, stackElement{n, newMax, true})
+	return s, nil
 }
 
 type commandDelete struct{}
 
-func (commandDelete) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
-	value := s.pop()
-	t.Delete(value)
-	return s, t, nil
+func (commandDelete) run(r io.Reader, s stack) (stack, error) {
+	s.pop()
+	return s, nil
 }
 
 type commandPrint struct{}
 
-func (commandPrint) run(r io.Reader, s stack, t bst.Bst) (stack, bst.Bst, error) {
-	fmt.Println(t.Max())
-	return s, t, nil
+func (commandPrint) run(r io.Reader, s stack) (stack, error) {
+	lastElement := s.peek()
+	fmt.Println(lastElement.currentMax)
+	return s, nil
 }
 
 func newCommand(c commandType) (command, error) {
@@ -88,7 +109,6 @@ func main() {
 	var err error
 	var c int
 	s := make(stack, 0)
-	t := bst.NewBst()
 
 	if _, err = readInt(os.Stdin); err != nil {
 		log.Fatal("Error reading input data ", err)
@@ -99,7 +119,7 @@ func main() {
 		if cmd, err = newCommand(commandType(c)); err != nil {
 			log.Fatal(err)
 		}
-		if s, t, err = cmd.run(os.Stdin, s, t); err != nil {
+		if s, err = cmd.run(os.Stdin, s); err != nil {
 			log.Fatal(err)
 		}
 	}
