@@ -3,112 +3,58 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
-	"os"
 )
 
-type stackElement struct {
-	b      int
-	height int
-}
-
-type stack []stackElement
-
-func (s stack) peek() stackElement {
-	if len(s) == 0 {
-		return stackElement{}
-	}
-	return s[len(s)-1]
-}
-
-func (s *stack) pop() stackElement {
-	if len(*s) == 0 {
-		return stackElement{}
-	}
-	stackElement := (*s)[len(*s)-1]
-	*s = (*s)[:len(*s)-1]
-	return stackElement
-}
-
-func buildStack(elems []int) stack {
-	s := make(stack, 0, len(elems))
-	height := 0
-	for i := len(elems) - 1; i >= 0; i-- {
-		height += elems[i]
-		s = append(s, stackElement{elems[i], height})
-	}
-	return s
-}
-
-func readnInt(r io.Reader, n int) ([]int, error) {
+func readStack(r io.Reader, n int) ([]int, error) {
 	res := make([]int, 0, n)
+	sum := 0
+
 	for i := 0; i < n; i++ {
 		var b int
 		_, err := fmt.Fscanf(r, "%d", &b)
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, b)
+		res = append(res, b+sum)
+		sum = b + sum
 	}
 	return res, nil
 }
 
-func readData(r io.Reader) [3]stack {
-	var ns [3]int
-	var stacks [3]stack
-	_, err := fmt.Fscanf(os.Stdin, "%d %d %d", &ns[0], &ns[1], &ns[2])
-	if err != nil {
-		log.Fatal("Error reading input ", err)
-	}
-
-	for i, n := range ns {
-		input, err := readnInt(r, n)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stacks[i] = buildStack(input)
-	}
-	return stacks
-}
-
-func areStacksEqual(stacks [3]stack) (bool, int, int) {
-	firstHeight := false
-	height := 0
-	equal := true
-	heighestStack := 0
-
-	for stackNo, s := range stacks {
-		if firstHeight {
-			if len(s) == 0 {
-				height = 0
-				heighestStack = stackNo
-			} else {
-				height = s[len(s)-1].height
-				heighestStack = stackNo
+func findLargestSum(c1, c2, c3 <-chan int, out chan<- int) {
+	maxes := make(map[int]int)
+	max := 0
+	for {
+		var sum int
+		select {
+		case sum, ok := <-c1:
+			if !ok {
+				c1 = nil
 			}
-		} else {
-			var newHeight int
-			if len(s) == 0 {
-				newHeight = 0
-			} else {
-				newHeight = s[len(s)-1].height
+		case sum, ok := <-c2:
+			if !ok {
+				c2 = nil
 			}
-			if height == newHeight {
-				equal = true
-			} else if height < newHeight {
-				equal = false
-				heighestStack = stackNo
-				height = newHeight
-			} else {
-				equal = false
+		case sum, ok := <-c3:
+			if !ok {
+				c3 = nil
 			}
 		}
+		maxes[sum]++
+		if maxes[sum] == 3 {
+			if sum > max {
+				max = sum
+			}
+		}
+		if c1 == nil && c2 == nil && c3 == nil {
+			break
+		}
 	}
-	return equal, height, heighestStack
+	out <- max
 }
 
 func main() {
-	stacks := readData(os.Stdin)
+	stacks := readData
 	var height, highestStack int
 	var equal bool
 	for equal, height, highestStack = areStacksEqual(stacks); height > 0 && !equal; equal, height, highestStack = areStacksEqual(stacks) {
