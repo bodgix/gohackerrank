@@ -7,23 +7,22 @@ import (
 	"os"
 )
 
-func readData(r io.Reader) [3][]int {
+func readData(r io.Reader, sumsCh chan<- int) {
+	defer close(sumsCh)
+
 	var ns [3]int
-	var stack []int
-	var sums [3][]int
 	_, err := fmt.Fscanf(os.Stdin, "%d %d %d", &ns[0], &ns[1], &ns[2])
 	if err != nil {
 		log.Fatal("Error reading input ", err)
 	}
 
-	for i, n := range ns {
-		stack, err = readStack(r, n)
-		sums[i] = buildSums(stack)
+	for _, n := range ns {
+		stack, err := readStack(r, n)
+		sendSums(stack, sumsCh)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	return sums
 }
 
 func readStack(r io.Reader, n int) ([]int, error) {
@@ -40,74 +39,35 @@ func readStack(r io.Reader, n int) ([]int, error) {
 	return res, nil
 }
 
-func buildSums(stack []int) []int {
-	sums := make([]int, 0, len(stack))
+func sendSums(stack []int, sumsCh chan<- int) {
 	sum := 0
 	for i := len(stack) - 1; i >= 0; i-- {
-		sums = append(sums, sum+stack[i])
-		sum = sum + stack[i]
+		sumsCh <- sum + stack[i]
+		sum += stack[i]
 	}
-	return sums
 }
 
-func checkCurSum(sum, max int, maxes map[int]int) (map[int]int, int) {
-	maxes[sum]++
-	if maxes[sum] == 3 {
-		if sum > max {
-			return maxes, sum
-		}
-	}
-	return maxes, max
-}
-
-func findLargestSum(c1, c2, c3 <-chan int, out chan<- int) {
-	defer close(out)
-	maxes := make(map[int]int)
-	max := 0
-	for {
-		select {
-		case sum, ok := <-c1:
-			maxes, max = checkCurSum(sum, max, maxes)
-			if !ok {
-				c1 = nil
-			}
-		case sum, ok := <-c2:
-			maxes, max = checkCurSum(sum, max, maxes)
-			if !ok {
-				c2 = nil
-			}
-		case sum, ok := <-c3:
-			maxes, max = checkCurSum(sum, max, maxes)
-			if !ok {
-				c3 = nil
+func findMaxSum(sumsCh <-chan int, resultCh chan<- int) {
+	defer close(resultCh)
+	sums := make(map[int]int)
+	maxSum := 0
+	for sum := range sumsCh {
+		sums[sum]++
+		if sums[sum] == 3 {
+			if sum > maxSum {
+				maxSum = sum
 			}
 		}
-		if c1 == nil && c2 == nil && c3 == nil {
-			break
-		}
 	}
-	out <- max
-}
-
-func sendStackToChan(c chan<- int, stack []int) {
-	defer close(c)
-	for _, sum := range stack {
-		c <- sum
-	}
+	resultCh <- maxSum
 }
 
 func main() {
-	stacks := readData(os.Stdin)
-	var chans [3]chan int
-	max := make(chan int)
+	sums := make(chan int)
+	result := make(chan int)
 
-	for i, stack := range stacks {
-		chans[i] = make(chan int)
-		go sendStackToChan(chans[i], stack)
-	}
+	go readData(os.Stdin, sums)
+	go findMaxSum(sums, result)
 
-	go findLargestSum(chans[0], chans[1], chans[2], max)
-
-	result := <-max
-	fmt.Println(result)
+	fmt.Println(<-result)
 }
